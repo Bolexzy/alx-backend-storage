@@ -8,6 +8,37 @@ from typing import Union, Callable, Any
 from functools import wraps
 
 
+def replay(fn: Callable) -> None:
+    '''Displays the call history of a Cache class' method.
+    '''
+
+    if fn is None or not hasattr(fn, '__self__'):
+        return
+
+    redis_store = getattr(fn.__self__, 'redis', None)
+    if not isinstance(redis_store, redis.Redis):
+        return
+
+    name = fn.__qualname__
+    in_key = '{}:inputs'.format(name)
+    out_key = '{}:outputs'.format(name)
+    call_count = 0
+
+    if redis_store.exists(name) != 0:
+        call_count = int(redis_store.get(name))
+    print('{} was called {} times:'.format(name, call_count))
+
+    inputs = redis_store.lrange(in_key, 0, -1)
+    outputs = redis_store.lrange(out_key, 0, -1)
+
+    for input, output in zip(inputs, outputs):
+        print('{}(*{}) -> {}'.format(
+            name,
+            input.decode("utf-8"),
+            output,
+        ))
+
+
 def count_calls(method: Callable) -> Callable:
     '''Tracks the number of calls made to a method in a Cache class.
     '''
