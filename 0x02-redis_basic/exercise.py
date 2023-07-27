@@ -4,7 +4,25 @@ Task 0. Writing strings to Redis
 """
 import redis
 from uuid import uuid4
-from typing import Union, Callable
+from typing import Union, Callable, Any
+from functools import wraps
+
+
+def count_calls(method: Callable) -> Callable:
+    '''Tracks the number of calls made to a method in a Cache class.
+    '''
+    @wraps(method)
+    def wrapped(self, *args, **kwargs) -> Any:
+        # Get the qualified name of the method using __qualname__
+        '''Invokes the given method after incrementing its call counter.
+        '''
+
+        if isinstance(self._redis, redis.Redis):
+            # Increment the count for the method name in Redis
+            self._redis.incr(method.__qualname__)
+        # Call the original method and return its result
+        return method(self, *args, **kwargs)
+    return wrapped
 
 
 class Cache:
@@ -16,6 +34,7 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb(True)
 
+    @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         '''Returns a key string of stored data
         '''
